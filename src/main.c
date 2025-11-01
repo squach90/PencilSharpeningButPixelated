@@ -2,6 +2,7 @@
 
 #include "SDL_rect.h"
 #include "SDL_render.h"
+#include "SDL_stdinc.h"
 #include "SDL_surface.h"
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -9,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
@@ -95,6 +97,7 @@ Arrow spawnArrow(SDL_Renderer* renderer, const char* path, int x, int y, int w, 
 
 int main(void) {
     createWindow();
+    srand(time( NULL )); // Random Seed
 
     if (TTF_Init() == -1) {
         printf("TTF_Init: %s\n", TTF_GetError());
@@ -105,6 +108,7 @@ int main(void) {
     SDL_Event event;
 
     int actualStep = 0;
+    int score = 0;
 
     // == Background ==
     bool backgroundVisible = true;
@@ -179,26 +183,74 @@ int main(void) {
 
     SDL_Texture* sharpenerTexture = SDL_CreateTextureFromSurface(state.renderer,sharpenerIMG);
 
+    int randNum = rand() % 3; // arrow chooser
+
+    Uint32 startTime = SDL_GetTicks();
+    int countdown = 10; // Coutdown in sec
+
     while (running) {
+
+        // === Timer ===
+        Uint32 currentTime = SDL_GetTicks();
+        Uint32 elapsed = (currentTime - startTime) / 1000;
+
+        int remaining = countdown - elapsed;
+        if (remaining < 0) remaining = 0;
+
+        int minutes = remaining / 60;
+        int seconds = remaining % 60;
+        int ms = (currentTime - startTime) % 1000;
+
+
+        // == Timer Text ==
+        char timerText[32];
+        sprintf(timerText, "%02d : %02d : %03d", minutes, seconds, ms);
+
+        SDL_FreeSurface(timerTextSurface);
+        SDL_DestroyTexture(timerTextTexture);
+
+        timerTextSurface = TTF_RenderText_Solid(font, timerText, timerTextColor);
+        timerTextTexture = SDL_CreateTextureFromSurface(state.renderer, timerTextSurface);
+        timerTextRect.w = timerTextSurface->w;
+        timerTextRect.h = timerTextSurface->h;
+
+        if (remaining == 0) {
+            printf("Score: %d", score);
+            running = false;
+        }
+
+
 
         const uint8_t *keystate = SDL_GetKeyboardState(NULL);
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
 
-            if (keystate[SDL_SCANCODE_UP]) {
+            if ((randNum == 0 && keystate[SDL_SCANCODE_LEFT]) || (randNum == 1 && keystate[SDL_SCANCODE_UP]) || (randNum == 2 && keystate[SDL_SCANCODE_RIGHT])) {
                 actualStep++;
-                pencil.rect.x -= 90;
-            };
+                pencil.rect.x -= 86; // to not go after the sharpener
+
+                randNum = rand() % 3;
+
+                leftArrow.visible  = (randNum == 0);
+                upArrow.visible    = (randNum == 1);
+                rightArrow.visible = (randNum == 2);
+            }
         }
         // === Logic ===
         if (actualStep >= NEED_STEP) {
             SDL_DestroyTexture(pencil.texture);
             pencil = spawnPencil(state.renderer);
             actualStep = 0;
+            score++;
         }
 
+        leftArrow.visible = (randNum == 0);
+        upArrow.visible = (randNum == 1);
+        rightArrow.visible = (randNum == 2);
 
         // === Render ===
+        SDL_RenderClear(state.renderer);
+
         // = Image =
         if (backgroundVisible) {
             SDL_RenderCopy(state.renderer, backgroundTexture, NULL, NULL);
@@ -237,7 +289,7 @@ int main(void) {
         SDL_RenderPresent(state.renderer);
     }
 
-    // === Destroy ==
+    // === Destroy ===
     SDL_DestroyTexture(backgroundTexture);
     SDL_DestroyTexture(bannerTexture);
     SDL_DestroyTexture(pencil.texture);
@@ -245,6 +297,7 @@ int main(void) {
     SDL_DestroyTexture(leftArrow.texture);
     SDL_DestroyTexture(rightArrow.texture);
     SDL_DestroyTexture(upArrow.texture);
+    SDL_DestroyTexture(timerTextTexture);
     SDL_FreeSurface(backgroundIMG);
     SDL_FreeSurface(sharpenerIMG);
     SDL_FreeSurface(bannerIMG);
