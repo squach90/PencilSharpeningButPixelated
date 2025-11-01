@@ -50,6 +50,48 @@ void createWindow() {
     SDL_RenderSetLogicalSize(state.renderer, SCREEN_WIDTH, SCREEN_HEIGHT); // keep ratio (16:9)
 }
 
+void showEndScreen(SDL_Renderer* renderer, TTF_Font* font, int score, SDL_Texture* backgroundTexture) {
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Color black = {0, 0, 0, 255};
+
+    char text[64];
+
+    // Texte Score
+    sprintf(text, "%d", score);
+    SDL_Surface* scoreSurface = TTF_RenderText_Solid(font, text, black);
+    SDL_Texture* scoreTexture = SDL_CreateTextureFromSurface(renderer, scoreSurface);
+    SDL_Rect scoreRect = {SCREEN_WIDTH/2 - scoreSurface->w/2 + 250, 470, scoreSurface->w, scoreSurface->h};
+
+    bool waiting = true;
+    SDL_Event event;
+
+    while(waiting) {
+        while(SDL_PollEvent(&event)) {
+            if(event.type == SDL_QUIT) exit(0);
+            if(event.type == SDL_KEYDOWN) {
+                if(event.key.keysym.scancode == SDL_SCANCODE_R) waiting = false; // Rejouer
+                if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_RETURN) exit(0); // Quitter
+            }
+        }
+
+        // Afficher le background
+        SDL_RenderClear(renderer);
+        if(backgroundTexture != NULL) {
+            SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
+        }
+
+        // Afficher le texte
+        SDL_RenderCopy(renderer, scoreTexture, NULL, &scoreRect);
+
+        SDL_RenderPresent(renderer);
+    }
+
+    SDL_FreeSurface(scoreSurface);
+    SDL_DestroyTexture(scoreTexture);
+}
+
+
+
 Pencil spawnPencil(SDL_Renderer* renderer) {
     Pencil p; // alias
 
@@ -124,6 +166,9 @@ int main(void) {
     bannerRect.h = 192; // 128 * 1.5
     bool bannerVisible = true;
 
+    // == End View ==
+    bool endScreenVisible = false;
+
     // == Main Screen ==
     SDL_Rect mainScreenRect;
     mainScreenRect.x = 0;
@@ -171,6 +216,16 @@ int main(void) {
 
     SDL_Texture* backgroundTexture = SDL_CreateTextureFromSurface(state.renderer,backgroundIMG);  // Texture -> in GPU Memory
 
+    // = End Screen =
+    SDL_Surface* endScreenIMG = IMG_Load("assets/EndView.png"); // Surface -> in CPU Memory
+    if(!endScreenIMG) {
+        printf("Error while loading Background Image: %s",SDL_GetError());
+        return -1;
+    }
+
+    SDL_Texture* endScreenTexture = SDL_CreateTextureFromSurface(state.renderer,endScreenIMG);  // Texture -> in GPU Memory
+
+
     // = Banner =
     SDL_Surface* bannerIMG = IMG_Load("assets/banner_w:_clock.png");
     if(!bannerIMG) {
@@ -206,7 +261,7 @@ int main(void) {
     int randNum = rand() % 3; // arrow chooser
 
     Uint32 startTime = 0;
-    int countdown = 10; // Countdown in sec
+    int countdown = 11; // Countdown in sec
 
     while (running) {
 
@@ -235,9 +290,17 @@ int main(void) {
             timerTextRect.w = timerTextSurface->w;
             timerTextRect.h = timerTextSurface->h;
             if (remaining == 0) {
-                printf("Score: %d", score);
-                running = false;
+                showEndScreen(state.renderer, font, score, endScreenTexture);
+
+                // Réinitialiser variables pour rejouer
+                actualStep = 0;
+                score = 0;
+                pencil = spawnPencil(state.renderer);
+                randNum = rand() % 3;
+                mainScreenVisible = true;
+                startTime = 0;
             }
+
         }
 
         const uint8_t *keystate = SDL_GetKeyboardState(NULL);
@@ -307,8 +370,13 @@ int main(void) {
         if (backgroundVisible && !mainScreenVisible) {
             SDL_RenderCopy(state.renderer, backgroundTexture, NULL, NULL);
         }
+
         if (bannerVisible) {
             SDL_RenderCopy(state.renderer, bannerTexture, NULL, &bannerRect);
+        }
+
+        if (endScreenVisible && !mainScreenVisible) {
+            SDL_RenderCopy(state.renderer, endScreenTexture, NULL, NULL);
         }
 
         if (pencil.visible) {
