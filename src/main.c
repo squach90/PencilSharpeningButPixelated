@@ -46,6 +46,8 @@ void createWindow() {
 
     state.renderer = SDL_CreateRenderer(state.window, -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    SDL_RenderSetLogicalSize(state.renderer, SCREEN_WIDTH, SCREEN_HEIGHT); // keep ratio (16:9)
 }
 
 Pencil spawnPencil(SDL_Renderer* renderer) {
