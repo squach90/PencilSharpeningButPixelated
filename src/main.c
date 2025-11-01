@@ -145,7 +145,7 @@ int main(void) {
     }
 
     SDL_Color timerTextColor = {0, 0, 0, 0}; // black
-    SDL_Surface* timerTextSurface = TTF_RenderText_Solid(font, "00 : 00 : 12", timerTextColor);
+    SDL_Surface* timerTextSurface = TTF_RenderText_Solid(font, "00:00:000", timerTextColor);
     SDL_Texture* timerTextTexture = SDL_CreateTextureFromSurface(state.renderer, timerTextSurface);
 
     SDL_Rect timerTextRect = {150, 90, timerTextSurface->w, timerTextSurface->h};
@@ -186,7 +186,7 @@ int main(void) {
     int randNum = rand() % 3; // arrow chooser
 
     Uint32 startTime = SDL_GetTicks();
-    int countdown = 10; // Coutdown in sec
+    int countdown = 10; // Countdown in sec
 
     while (running) {
 
@@ -204,7 +204,7 @@ int main(void) {
 
         // == Timer Text ==
         char timerText[32];
-        sprintf(timerText, "%02d : %02d : %03d", minutes, seconds, ms);
+        sprintf(timerText, "%02d:%02d:%03d", minutes, seconds, ms); // text formating :  00:00:000
 
         SDL_FreeSurface(timerTextSurface);
         SDL_DestroyTexture(timerTextTexture);
