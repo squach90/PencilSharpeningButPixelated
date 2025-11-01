@@ -203,7 +203,7 @@ int main(void) {
 
     int randNum = rand() % 3; // arrow chooser
 
-    Uint32 startTime = SDL_GetTicks();
+    Uint32 startTime = 0;
     int countdown = 10; // Countdown in sec
 
     while (running) {
@@ -242,7 +242,7 @@ int main(void) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
 
-            if ((randNum == 0 && keystate[SDL_SCANCODE_LEFT]) || (randNum == 1 && keystate[SDL_SCANCODE_UP]) || (randNum == 2 && keystate[SDL_SCANCODE_RIGHT])) {
+            if ((randNum == 0 && !mainScreenVisible && keystate[SDL_SCANCODE_LEFT]) || (randNum == 1 && keystate[SDL_SCANCODE_UP]) || (randNum == 2 && keystate[SDL_SCANCODE_RIGHT])) {
                 actualStep++;
                 pencil.rect.x -= 86; // to not go after the sharpener
 
@@ -252,9 +252,39 @@ int main(void) {
                 upArrow.visible    = (randNum == 1);
                 rightArrow.visible = (randNum == 2);
             }
-            if (keystate[SDL_SCANCODE_RETURN]) {
+            if (keystate[SDL_SCANCODE_RETURN] && mainScreenVisible) {
+                // === READY ===
+                SDL_Surface* readySurface = TTF_RenderText_Solid(font, "READY...", timerTextColor);
+                SDL_Texture* readyTexture = SDL_CreateTextureFromSurface(state.renderer, readySurface);
+                SDL_Rect readyRect = {SCREEN_WIDTH/2 - readySurface->w/2, SCREEN_HEIGHT/2 - readySurface->h/2, readySurface->w, readySurface->h};
+
+                SDL_RenderClear(state.renderer);
+                SDL_RenderCopy(state.renderer, backgroundTexture, NULL, NULL);
+                SDL_RenderCopy(state.renderer, readyTexture, NULL, &readyRect);
+                SDL_RenderPresent(state.renderer);
+                SDL_Delay(1000);
+
+                // === GO! ===
+                SDL_Surface* goSurface = TTF_RenderText_Solid(font, "GO!", timerTextColor);
+                SDL_Texture* goTexture = SDL_CreateTextureFromSurface(state.renderer, goSurface);
+                SDL_Rect goRect = {SCREEN_WIDTH/2 - goSurface->w/2, SCREEN_HEIGHT/2 - goSurface->h/2, goSurface->w, goSurface->h};
+
+                SDL_RenderClear(state.renderer);
+                SDL_RenderCopy(state.renderer, backgroundTexture, NULL, NULL);
+                SDL_RenderCopy(state.renderer, goTexture, NULL, &goRect);
+                SDL_RenderPresent(state.renderer);
+                SDL_Delay(500);
+
+                SDL_FreeSurface(readySurface);
+                SDL_FreeSurface(goSurface);
+                SDL_DestroyTexture(readyTexture);
+                SDL_DestroyTexture(goTexture);
+
+                // === Start the game ===
                 mainScreenVisible = false;
+                startTime = SDL_GetTicks();
             }
+
         }
         // === Logic ===
         if (actualStep >= NEED_STEP) {
