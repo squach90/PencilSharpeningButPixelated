@@ -2,6 +2,7 @@
 
 #include "SDL_rect.h"
 #include "SDL_render.h"
+#include "SDL_scancode.h"
 #include "SDL_stdinc.h"
 #include "SDL_surface.h"
 #include <SDL.h>
@@ -121,7 +122,15 @@ int main(void) {
     bannerRect.h = 192; // 128 * 1.5
     bool bannerVisible = true;
 
-    // == Sharpener == 420 × 256
+    // == Main Screen ==
+    SDL_Rect mainScreenRect;
+    mainScreenRect.x = 0;
+    mainScreenRect.y = 0;
+    mainScreenRect.w = 1920;
+    mainScreenRect.h = 1080;
+    bool mainScreenVisible = true;
+
+    // == Sharpener ==
     SDL_Rect sharpenerRect;
     sharpenerRect.x = 200;
     sharpenerRect.y = 600;
@@ -169,6 +178,15 @@ int main(void) {
 
     SDL_Texture* bannerTexture = SDL_CreateTextureFromSurface(state.renderer,bannerIMG);
 
+    // = Main Screen =
+    SDL_Surface* mainScreenIMG = IMG_Load("assets/MainScreen.png");
+    if(!mainScreenIMG) {
+        printf("Error while loading Main Screen Image: %s",SDL_GetError());
+        return -1;
+    }
+
+    SDL_Texture* mainScreenTexture = SDL_CreateTextureFromSurface(state.renderer,mainScreenIMG);
+
     // = Pencil =
     Pencil pencil = spawnPencil(state.renderer);
     actualStep = 0;
@@ -191,35 +209,34 @@ int main(void) {
     while (running) {
 
         // === Timer ===
-        Uint32 currentTime = SDL_GetTicks();
-        Uint32 elapsed = (currentTime - startTime) / 1000;
+        if (!mainScreenVisible) {
+            Uint32 currentTime = SDL_GetTicks();
+            Uint32 elapsed = (currentTime - startTime) / 1000;
 
-        int remaining = countdown - elapsed;
-        if (remaining < 0) remaining = 0;
+            int remaining = countdown - elapsed;
+            if (remaining < 0) remaining = 0;
 
-        int minutes = remaining / 60;
-        int seconds = remaining % 60;
-        int ms = (currentTime - startTime) % 1000;
+            int minutes = remaining / 60;
+            int seconds = remaining % 60;
+            int ms = (currentTime - startTime) % 1000;
 
 
-        // == Timer Text ==
-        char timerText[32];
-        sprintf(timerText, "%02d:%02d:%03d", minutes, seconds, ms); // text formating :  00:00:000
+            // == Timer Text ==
+            char timerText[32];
+            sprintf(timerText, "%02d:%02d:%03d", minutes, seconds, ms); // text formating :  00:00:000
 
-        SDL_FreeSurface(timerTextSurface);
-        SDL_DestroyTexture(timerTextTexture);
+            SDL_FreeSurface(timerTextSurface);
+            SDL_DestroyTexture(timerTextTexture);
 
-        timerTextSurface = TTF_RenderText_Solid(font, timerText, timerTextColor);
-        timerTextTexture = SDL_CreateTextureFromSurface(state.renderer, timerTextSurface);
-        timerTextRect.w = timerTextSurface->w;
-        timerTextRect.h = timerTextSurface->h;
-
-        if (remaining == 0) {
-            printf("Score: %d", score);
-            running = false;
+            timerTextSurface = TTF_RenderText_Solid(font, timerText, timerTextColor);
+            timerTextTexture = SDL_CreateTextureFromSurface(state.renderer, timerTextSurface);
+            timerTextRect.w = timerTextSurface->w;
+            timerTextRect.h = timerTextSurface->h;
+            if (remaining == 0) {
+                printf("Score: %d", score);
+                running = false;
+            }
         }
-
-
 
         const uint8_t *keystate = SDL_GetKeyboardState(NULL);
         while (SDL_PollEvent(&event)) {
@@ -235,6 +252,9 @@ int main(void) {
                 upArrow.visible    = (randNum == 1);
                 rightArrow.visible = (randNum == 2);
             }
+            if (keystate[SDL_SCANCODE_RETURN]) {
+                mainScreenVisible = false;
+            }
         }
         // === Logic ===
         if (actualStep >= NEED_STEP) {
@@ -244,15 +264,15 @@ int main(void) {
             score++;
         }
 
+
         leftArrow.visible = (randNum == 0);
         upArrow.visible = (randNum == 1);
         rightArrow.visible = (randNum == 2);
-
         // === Render ===
         SDL_RenderClear(state.renderer);
 
         // = Image =
-        if (backgroundVisible) {
+        if (backgroundVisible && !mainScreenVisible) {
             SDL_RenderCopy(state.renderer, backgroundTexture, NULL, NULL);
         }
         if (bannerVisible) {
@@ -267,21 +287,24 @@ int main(void) {
             SDL_RenderCopy(state.renderer, sharpenerTexture, NULL, &sharpenerRect);
         }
 
-        if (leftArrow.visible) {
+        if (leftArrow.visible && !mainScreenVisible) {
             SDL_RenderCopy(state.renderer, leftArrow.texture, NULL, &leftArrow.rect);
         }
 
-        if (rightArrow.visible) {
+        if (rightArrow.visible && !mainScreenVisible) {
             SDL_RenderCopy(state.renderer, rightArrow.texture, NULL, &rightArrow.rect);
         }
 
-        if (upArrow.visible) {
+        if (upArrow.visible && !mainScreenVisible) {
             SDL_RenderCopy(state.renderer, upArrow.texture, NULL, &upArrow.rect);
         }
 
+        if (mainScreenVisible) {
+            SDL_RenderCopy(state.renderer, mainScreenTexture, NULL, &mainScreenRect);
+        }
 
         // = Text =
-        if (timerTextVisible) {
+        if (timerTextVisible && !mainScreenVisible) {
             SDL_RenderCopy(state.renderer, timerTextTexture, NULL, &timerTextRect);
         }
 
@@ -298,9 +321,11 @@ int main(void) {
     SDL_DestroyTexture(rightArrow.texture);
     SDL_DestroyTexture(upArrow.texture);
     SDL_DestroyTexture(timerTextTexture);
+    SDL_DestroyTexture(mainScreenTexture);
     SDL_FreeSurface(backgroundIMG);
     SDL_FreeSurface(sharpenerIMG);
     SDL_FreeSurface(bannerIMG);
+    SDL_FreeSurface(mainScreenIMG);
     SDL_DestroyRenderer(state.renderer);
     SDL_DestroyWindow(state.window);
 
