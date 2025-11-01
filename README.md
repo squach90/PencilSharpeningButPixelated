@@ -1,3 +1,8 @@
+Use:
+```bash
+./pencil -dev # For devmode
+```
+
 Credits: 
 
 https://www.dafont.com/c-c-red-alert-inet.font

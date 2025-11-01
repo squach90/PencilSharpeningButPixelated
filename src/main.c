@@ -1,10 +1,5 @@
 // == TODO: make a initialize() for reset all var ==
 
-#include "SDL_rect.h"
-#include "SDL_render.h"
-#include "SDL_scancode.h"
-#include "SDL_stdinc.h"
-#include "SDL_surface.h"
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <SDL_image.h>
@@ -12,6 +7,33 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <CoreFoundation/CoreFoundation.h>
+#include <libgen.h>
+#include <unistd.h>
+
+char* getResourcePath(const char* filename, bool devMode) {
+    static char path[1024];
+    if (devMode) {
+        snprintf(path, sizeof(path), "assets/%s", filename);
+    } else {
+    #if defined(__APPLE__)
+        CFBundleRef mainBundle = CFBundleGetMainBundle();
+        CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
+        char resourcesPath[1024];
+        CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8*)resourcesPath, sizeof(resourcesPath));
+        CFRelease(resourcesURL);
+        snprintf(path, sizeof(path), "%s/%s", resourcesPath, filename);
+    #else
+        // Linux / Windows : binaire et assets dans le même dossier
+        char cwd[1024];
+        getcwd(cwd, sizeof(cwd));
+        snprintf(path, sizeof(path), "%s/assets/%s", cwd, filename);
+    #endif
+    }
+    return path;
+}
+
 
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
@@ -90,12 +112,9 @@ void showEndScreen(SDL_Renderer* renderer, TTF_Font* font, int score, SDL_Textur
     SDL_DestroyTexture(scoreTexture);
 }
 
-
-
-Pencil spawnPencil(SDL_Renderer* renderer) {
-    Pencil p; // alias
-
-    SDL_Surface* img = IMG_Load("assets/pencil.png");
+Pencil spawnPencil(SDL_Renderer* renderer, bool devMode) {
+    Pencil p;
+    SDL_Surface* img = IMG_Load(getResourcePath("pencil.png", devMode));
     if (!img) {
         printf("Error loading pencil: %s\n", SDL_GetError());
         p.texture = NULL;
@@ -105,16 +124,15 @@ Pencil spawnPencil(SDL_Renderer* renderer) {
     p.texture = SDL_CreateTextureFromSurface(renderer, img);
     SDL_FreeSurface(img);
 
-    // = Initial Var =
     p.rect.x = 1000;
     p.rect.y = 650;
     p.rect.w = 780;
     p.rect.h = 192;
-
     p.visible = true;
 
     return p;
 }
+
 
 Arrow spawnArrow(SDL_Renderer* renderer, const char* path, int x, int y, int w, int h) {
     Arrow arrow;
@@ -140,9 +158,18 @@ Arrow spawnArrow(SDL_Renderer* renderer, const char* path, int x, int y, int w, 
 }
 
 
-int main(void) {
+int main(int argc, char * argv[]) {
     createWindow();
     srand(time( NULL )); // Random Seed
+
+    bool devMode = false;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-dev") == 0) {
+            devMode = true;
+            break;
+        }
+    }
 
     if (TTF_Init() == -1) {
         printf("TTF_Init: %s\n", TTF_GetError());
@@ -185,16 +212,17 @@ int main(void) {
     sharpenerRect.h = 307; // 256 * 1.2
     bool sharpenerVisible = true;
 
-    Arrow leftArrow  = spawnArrow(state.renderer, "assets/LeftArrow.png",  250, 447, 165, 165); // 110 * 1.5
-    Arrow rightArrow = spawnArrow(state.renderer, "assets/RightArrow.png", 500, 440, 165, 165); // 110 * 1.5
-    Arrow upArrow    = spawnArrow(state.renderer, "assets/UpArrow.png",    375, 440, 165, 165); // 110 * 1.5
+    Arrow leftArrow  = spawnArrow(state.renderer, getResourcePath("LeftArrow.png", devMode),  250, 447, 165, 165);
+    Arrow rightArrow = spawnArrow(state.renderer, getResourcePath("RightArrow.png", devMode), 500, 440, 165, 165);
+    Arrow upArrow    = spawnArrow(state.renderer, getResourcePath("UpArrow.png", devMode),    375, 440, 165, 165);
+
 
 
     // == Timer Text ==
     bool timerTextVisible = true;
 
     // == Font ==
-    TTF_Font* font = TTF_OpenFont("assets/pixelFont.ttf", 96);
+    TTF_Font* font = TTF_OpenFont(getResourcePath("pixelFont.ttf", devMode), 96);
     if (!font) {
         printf("Failed to load font: %s\n", TTF_GetError());
         return -1;
@@ -208,7 +236,7 @@ int main(void) {
 
     // === Load Images ===
     // = Background =
-    SDL_Surface* backgroundIMG = IMG_Load("assets/background.png"); // Surface -> in CPU Memory
+    SDL_Surface* backgroundIMG = IMG_Load(getResourcePath("background.png", devMode));
     if(!backgroundIMG) {
         printf("Error while loading Background Image: %s",SDL_GetError());
         return -1;
@@ -217,7 +245,7 @@ int main(void) {
     SDL_Texture* backgroundTexture = SDL_CreateTextureFromSurface(state.renderer,backgroundIMG);  // Texture -> in GPU Memory
 
     // = End Screen =
-    SDL_Surface* endScreenIMG = IMG_Load("assets/EndView.png"); // Surface -> in CPU Memory
+    SDL_Surface* endScreenIMG = IMG_Load(getResourcePath("EndView.png", devMode));
     if(!endScreenIMG) {
         printf("Error while loading Background Image: %s",SDL_GetError());
         return -1;
@@ -227,7 +255,7 @@ int main(void) {
 
 
     // = Banner =
-    SDL_Surface* bannerIMG = IMG_Load("assets/banner_w:_clock.png");
+    SDL_Surface* bannerIMG = IMG_Load(getResourcePath("banner_w:_clock.png", devMode));
     if(!bannerIMG) {
         printf("Error while loading Banner Image: %s",SDL_GetError());
         return -1;
@@ -236,7 +264,7 @@ int main(void) {
     SDL_Texture* bannerTexture = SDL_CreateTextureFromSurface(state.renderer,bannerIMG);
 
     // = Main Screen =
-    SDL_Surface* mainScreenIMG = IMG_Load("assets/MainScreen.png");
+    SDL_Surface* mainScreenIMG = IMG_Load(getResourcePath("MainScreen.png", devMode));
     if(!mainScreenIMG) {
         printf("Error while loading Main Screen Image: %s",SDL_GetError());
         return -1;
@@ -245,12 +273,13 @@ int main(void) {
     SDL_Texture* mainScreenTexture = SDL_CreateTextureFromSurface(state.renderer,mainScreenIMG);
 
     // = Pencil =
-    Pencil pencil = spawnPencil(state.renderer);
+    Pencil pencil = spawnPencil(state.renderer, devMode);
+
     actualStep = 0;
 
 
     // = Sharpener =
-    SDL_Surface* sharpenerIMG = IMG_Load("assets/sharpener.png");
+    SDL_Surface* sharpenerIMG = IMG_Load(getResourcePath("sharpener.png", devMode));
     if(!sharpenerIMG) {
         printf("Error while loading Sharpener Image: %s",SDL_GetError());
         return -1;
@@ -295,7 +324,7 @@ int main(void) {
                 // Réinitialiser variables pour rejouer
                 actualStep = 0;
                 score = 0;
-                pencil = spawnPencil(state.renderer);
+                pencil = spawnPencil(state.renderer, devMode);
                 randNum = rand() % 3;
                 mainScreenVisible = true;
                 startTime = 0;
@@ -354,7 +383,7 @@ int main(void) {
         // === Logic ===
         if (actualStep >= NEED_STEP) {
             SDL_DestroyTexture(pencil.texture);
-            pencil = spawnPencil(state.renderer);
+            pencil = spawnPencil(state.renderer, devMode);
             actualStep = 0;
             score++;
         }
